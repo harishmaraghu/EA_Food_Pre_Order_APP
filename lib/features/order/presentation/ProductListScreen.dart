@@ -674,10 +674,42 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 Navigator.pop(context);
                 productBloc.add(PlaceOrders(widget.userType));
 
-                // Get next day slot info
-                final nextDay = DateTime.now().add(const Duration(days: 1));
-                final dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][nextDay.weekday - 1];
-                final dateString = "${nextDay.day}/${nextDay.month}/${nextDay.year}";
+                // Get user's stock booking time (current time when placing order)
+                final stockBookingTime = DateTime.now();
+                final cutoffTime = DateTime(stockBookingTime.year, stockBookingTime.month, stockBookingTime.day, 18, 0); // 6:00 PM same day
+
+                // Check if stock booking time is before or after 6 PM cutoff
+                final isStockBookedBeforeCutoff = stockBookingTime.isBefore(cutoffTime);
+
+                // 3 Types of Delivery Assignment based on stock booking time:
+                DateTime deliveryDate;
+                String deliveryType;
+                String timeStatus;
+                Color statusColor;
+                IconData statusIcon;
+
+                if (isStockBookedBeforeCutoff) {
+                  // Type 1: Stock booked before 6 PM → Next day delivery (+1 day)
+                  deliveryDate = stockBookingTime.add(const Duration(days: 1));
+                  deliveryType = "Next Day Delivery";
+                  timeStatus = "Stock booked before 6:00 PM cutoff";
+                  statusColor = Colors.lightGreen;
+                  statusIcon = Icons.schedule;
+                } else {
+                  // Type 2: Stock booked after 6 PM → 2 days later delivery (+2 days)
+                  deliveryDate = stockBookingTime.add(const Duration(days: 2));
+                  deliveryType = "Extended Delivery";
+                  timeStatus = "Stock booked after 6:00 PM cutoff";
+                  statusColor = Colors.orange;
+                  statusIcon = Icons.schedule_outlined;
+                }
+
+                final dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][deliveryDate.weekday - 1];
+                final dateString = "${deliveryDate.day}/${deliveryDate.month}/${deliveryDate.year}";
+
+                // Format stock booking time for display
+                final bookingTimeString = "${stockBookingTime.hour.toString().padLeft(2, '0')}:${stockBookingTime.minute.toString().padLeft(2, '0')}";
+                final bookingDateString = "${stockBookingTime.day}/${stockBookingTime.month}/${stockBookingTime.year}";
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -685,6 +717,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Order Success Header
                         Row(
                           children: [
                             Icon(
@@ -704,14 +737,102 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Delivery scheduled for next day: $dayName, $dateString",
-                          style: const TextStyle(fontSize: 14),
+                        const SizedBox(height: 8),
+
+                        // Stock Booking Time Info
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.inventory,
+                              color: Colors.white70,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              "Stock booked: $bookingTimeString on $bookingDateString",
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
+
+                        // Cutoff Status
+                        Row(
+                          children: [
+                            Icon(
+                              statusIcon,
+                              color: statusColor,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                timeStatus,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+
+                        // Delivery Assignment Type
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.local_shipping,
+                                color: statusColor,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                deliveryType,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+
+                        // Final Delivery Date
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.event,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                "Delivery scheduled: $dayName, $dateString",
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+
+                        // Stock Planning Message
                         Text(
-                          "Your order flows into consolidated stock planning",
+                          "Your order flows into consolidated stock planning system",
                           style: const TextStyle(
                             fontSize: 12,
                             color: Colors.white70,
@@ -720,7 +841,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       ],
                     ),
                     backgroundColor: AppColors.success,
-                    duration: const Duration(seconds: 4),
+                    duration: const Duration(seconds: 6),
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),

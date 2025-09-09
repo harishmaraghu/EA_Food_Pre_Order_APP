@@ -35,7 +35,6 @@ class OrderHistoryScreen extends StatelessWidget {
           ),
         ],
       ),
-      // REMOVED BlocProvider wrapper - ProductBloc is now at app level
       body: BlocBuilder<ProductBloc, ProductState>(
         builder: (context, state) {
           if (state.isLoading) {
@@ -202,95 +201,205 @@ class OrderHistoryScreen extends StatelessWidget {
                         ),
 
                         // Orders for this date
-                        ...dayOrders.map((order) => Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.border),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.shadow,
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(16),
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: _getProductColor(order.productName).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                _getProductIcon(order.productName),
-                                color: _getProductColor(order.productName),
-                              ),
-                            ),
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    order.productName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: roleColor.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    userType,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: roleColor,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                        ...dayOrders.map((order) {
+                          // Calculate delivery info based on order booking time
+                          final deliveryInfo = _calculateDeliveryInfo(order.date);
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.border),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.shadow,
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
                                 ),
                               ],
                             ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Text(
-                                  "Quantity: ${order.qty} ${_getProductUnit(order.productName)}",
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textPrimary,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  // Main order info row
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: _getProductColor(order.productName).withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          _getProductIcon(order.productName),
+                                          color: _getProductColor(order.productName),
+                                          size: 24,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    order.productName,
+                                                    style: const TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 16,
+                                                      color: AppColors.textPrimary,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: roleColor.withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Text(
+                                                    userType,
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: roleColor,
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              "Quantity: ${order.qty} ${_getProductUnit(order.productName)}",
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: AppColors.error,
+                                        ),
+                                        onPressed: () => _showDeleteConfirmation(context, order),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _formatTime(order.date),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary,
+
+                                  const SizedBox(height: 12),
+
+                                  // Order timing and delivery info
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.background,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: AppColors.border.withOpacity(0.3)),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        // Stock booking time
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.inventory,
+                                              size: 16,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              "Stock booked:",
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: AppColors.textSecondary,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              _formatTime(order.date),
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: AppColors.textPrimary,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const Spacer(),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: deliveryInfo['statusColor'].withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                deliveryInfo['cutoffStatus'],
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: deliveryInfo['statusColor'],
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+
+                                        const SizedBox(height: 8),
+
+                                        // Delivery info
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.local_shipping,
+                                              size: 16,
+                                              color: deliveryInfo['statusColor'],
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              deliveryInfo['deliveryType'],
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: deliveryInfo['statusColor'],
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Icon(
+                                              Icons.event,
+                                              size: 14,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                deliveryInfo['deliveryDateTime'],
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: AppColors.error,
+                                ],
                               ),
-                              onPressed: () => _showDeleteConfirmation(context, order),
                             ),
-                          ),
-                        )).toList(),
+                          );
+                        }).toList(),
 
                         const SizedBox(height: 8),
                       ],
@@ -303,6 +412,39 @@ class OrderHistoryScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  // Calculate delivery info based on stock booking time
+  Map<String, dynamic> _calculateDeliveryInfo(DateTime stockBookingTime) {
+    final cutoffTime = DateTime(stockBookingTime.year, stockBookingTime.month, stockBookingTime.day, 18, 0);
+    final isStockBookedBeforeCutoff = stockBookingTime.isBefore(cutoffTime);
+
+    DateTime deliveryDate;
+    String deliveryType;
+    String cutoffStatus;
+    Color statusColor;
+
+    if (isStockBookedBeforeCutoff) {
+      deliveryDate = stockBookingTime.add(const Duration(days: 1));
+      deliveryType = "Next Day";
+      cutoffStatus = "Before 6PM";
+      statusColor = Colors.green;
+    } else {
+      deliveryDate = stockBookingTime.add(const Duration(days: 2));
+      deliveryType = "Extended (+2 days)";
+      cutoffStatus = "After 6PM";
+      statusColor = Colors.orange;
+    }
+
+    final dayName = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][deliveryDate.weekday - 1];
+    final deliveryDateString = "${deliveryDate.day}/${deliveryDate.month}/${deliveryDate.year}";
+
+    return {
+      'deliveryType': deliveryType,
+      'deliveryDateTime': "$dayName, $deliveryDateString",
+      'cutoffStatus': cutoffStatus,
+      'statusColor': statusColor,
+    };
   }
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
@@ -454,6 +596,8 @@ class OrderHistoryScreen extends StatelessWidget {
   }
 
   void _showDeleteConfirmation(BuildContext context, Order order) {
+    final deliveryInfo = _calculateDeliveryInfo(order.date);
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -467,10 +611,52 @@ class OrderHistoryScreen extends StatelessWidget {
             Text("Delete Order"),
           ],
         ),
-        content: Text(
-          "Are you sure you want to delete this order?\n\n"
-              "${order.productName} - ${order.qty} ${_getProductUnit(order.productName)}\n"
-              "Ordered on ${_formatDateKey(order.date)}",
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Are you sure you want to delete this order?",
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "${order.productName} - ${order.qty} ${_getProductUnit(order.productName)}",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text("Ordered: ${_formatDateKey(order.date)} at ${_formatTime(order.date)}"),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Delivery: ${deliveryInfo['deliveryType']} - ${deliveryInfo['deliveryDateTime']}",
+                    style: TextStyle(
+                      color: deliveryInfo['statusColor'],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    "Time Slot: ${deliveryInfo['deliverySlot']}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: deliveryInfo['statusColor'],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -480,7 +666,6 @@ class OrderHistoryScreen extends StatelessWidget {
           BlocConsumer<ProductBloc, ProductState>(
             listener: (context, state) {
               if (!state.isLoading && state.error == null) {
-                // Order deleted successfully
                 Navigator.pop(dialogContext);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
