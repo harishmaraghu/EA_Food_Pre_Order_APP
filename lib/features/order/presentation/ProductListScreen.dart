@@ -532,55 +532,59 @@ class _ProductListScreenState extends State<ProductListScreen> {
       return;
     }
 
+    // FIXED: Pass the ProductBloc context properly to the bottom sheet
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Cart Summary",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ...selectedProducts.map((product) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Icon(_getProductIcon(product["name"]), size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(product["name"])),
-                  Text(
-                    "${product["qty"]} ${product["unit"]}",
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            )),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _placeOrder(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.getRoleColor(widget.userType),
-                  foregroundColor: Colors.white,
+      builder: (bottomSheetContext) => BlocProvider.value(
+        value: context.read<ProductBloc>(), // Pass the existing ProductBloc
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Cart Summary",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
-                child: const Text("Place Order"),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              ...selectedProducts.map((product) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(_getProductIcon(product["name"]), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(product["name"])),
+                    Text(
+                      "${product["qty"]} ${product["unit"]}",
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              )),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(bottomSheetContext);
+                    _placeOrder(context); // Use original context
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.getRoleColor(widget.userType),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text("Place Order"),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -593,269 +597,181 @@ class _ProductListScreenState extends State<ProductListScreen> {
     if (hasSelected) {
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Icon(
-                Icons.check_circle,
-                color: AppColors.success,
-                size: 28,
-              ),
-              const SizedBox(width: 8),
-              const Text("Confirm Order"),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Place order as ${widget.userType}?",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.getRoleColor(widget.userType).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: productBloc.state.products
-                      .where((p) => p["qty"] > 0)
-                      .map((product) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _getProductIcon(product["name"]),
-                          size: 16,
-                          color: AppColors.getRoleColor(widget.userType),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(product["name"])),
-                        Text(
-                          "${product["qty"]} ${product["unit"]}",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.getRoleColor(widget.userType),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ))
-                      .toList(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                "Order will be saved with userType = ${widget.userType}",
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+        builder: (dialogContext) => BlocProvider.value(
+          value: productBloc, // Pass the ProductBloc to dialog context
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                productBloc.add(PlaceOrders(widget.userType));
-
-                // Get user's stock booking time (current time when placing order)
-                final stockBookingTime = DateTime.now();
-                final cutoffTime = DateTime(stockBookingTime.year, stockBookingTime.month, stockBookingTime.day, 18, 0); // 6:00 PM same day
-
-                // Check if stock booking time is before or after 6 PM cutoff
-                final isStockBookedBeforeCutoff = stockBookingTime.isBefore(cutoffTime);
-
-                // 3 Types of Delivery Assignment based on stock booking time:
-                DateTime deliveryDate;
-                String deliveryType;
-                String timeStatus;
-                Color statusColor;
-                IconData statusIcon;
-
-                if (isStockBookedBeforeCutoff) {
-                  // Type 1: Stock booked before 6 PM → Next day delivery (+1 day)
-                  deliveryDate = stockBookingTime.add(const Duration(days: 1));
-                  deliveryType = "Next Day Delivery";
-                  timeStatus = "Stock booked before 6:00 PM cutoff";
-                  statusColor = Colors.lightGreen;
-                  statusIcon = Icons.schedule;
-                } else {
-                  // Type 2: Stock booked after 6 PM → 2 days later delivery (+2 days)
-                  deliveryDate = stockBookingTime.add(const Duration(days: 2));
-                  deliveryType = "Extended Delivery";
-                  timeStatus = "Stock booked after 6:00 PM cutoff";
-                  statusColor = Colors.orange;
-                  statusIcon = Icons.schedule_outlined;
-                }
-
-                final dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][deliveryDate.weekday - 1];
-                final dateString = "${deliveryDate.day}/${deliveryDate.month}/${deliveryDate.year}";
-
-                // Format stock booking time for display
-                final bookingTimeString = "${stockBookingTime.hour.toString().padLeft(2, '0')}:${stockBookingTime.minute.toString().padLeft(2, '0')}";
-                final bookingDateString = "${stockBookingTime.day}/${stockBookingTime.month}/${stockBookingTime.year}";
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Order Success Header
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.check_circle,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                "Order placed successfully!",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Stock Booking Time Info
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.inventory,
-                              color: Colors.white70,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              "Stock booked: $bookingTimeString on $bookingDateString",
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-
-                        // Cutoff Status
-                        Row(
-                          children: [
-                            Icon(
-                              statusIcon,
-                              color: statusColor,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                timeStatus,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: statusColor,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-
-                        // Delivery Assignment Type
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+            title: Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: AppColors.success,
+                  size: 28,
+                ),
+                const SizedBox(width: 8),
+                const Text("Confirm Order"),
+              ],
+            ),
+            content: BlocBuilder<ProductBloc, ProductState>(
+              builder: (context, state) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Place order as ${widget.userType}?",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.getRoleColor(widget.userType).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: state.products
+                            .where((p) => p["qty"] > 0)
+                            .map((product) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.local_shipping,
-                                color: statusColor,
-                                size: 14,
+                                _getProductIcon(product["name"]),
+                                size: 16,
+                                color: AppColors.getRoleColor(widget.userType),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(product["name"])),
                               Text(
-                                deliveryType,
+                                "${product["qty"]} ${product["unit"]}",
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  color: statusColor,
                                   fontWeight: FontWeight.w600,
+                                  color: AppColors.getRoleColor(widget.userType),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 6),
+                        ))
+                            .toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "Order will be saved with userType = ${widget.userType}",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text("Cancel"),
+              ),
+              BlocConsumer<ProductBloc, ProductState>(
+                listener: (context, state) {
+                  if (!state.isLoading && state.error == null) {
+                    // Order placed successfully
+                    Navigator.pop(dialogContext);
 
-                        // Final Delivery Date
-                        Row(
+                    // Get next day slot info
+                    final nextDay = DateTime.now().add(const Duration(days: 1));
+                    final dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][nextDay.weekday - 1];
+                    final dateString = "${nextDay.day}/${nextDay.month}/${nextDay.year}";
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.event,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                "Delivery scheduled: $dayName, $dateString",
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  color: Colors.white,
+                                  size: 20,
                                 ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    "Order placed successfully!",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Delivery scheduled for next day: $dayName, $dateString",
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "Your order flows into consolidated stock planning",
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-
-                        // Stock Planning Message
-                        Text(
-                          "Your order flows into consolidated stock planning system",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white70,
-                          ),
+                        backgroundColor: AppColors.success,
+                        duration: const Duration(seconds: 4),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ],
+                      ),
+                    );
+                  } else if (state.error != null) {
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Error placing order: ${state.error}"),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                },
+                builder: (context, state) {
+                  return ElevatedButton(
+                    onPressed: state.isLoading
+                        ? null
+                        : () => context.read<ProductBloc>().add(PlaceOrders(widget.userType)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.getRoleColor(widget.userType),
+                      foregroundColor: Colors.white,
                     ),
-                    backgroundColor: AppColors.success,
-                    duration: const Duration(seconds: 6),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.getRoleColor(widget.userType),
-                foregroundColor: Colors.white,
+                    child: state.isLoading
+                        ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                        : const Text("Place Order"),
+                  );
+                },
               ),
-              child: const Text("Place Order"),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     } else {
