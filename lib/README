@@ -1,0 +1,44 @@
+##EA Foods - Pre-Order System (Flutter Assignment)
+Overview
+This project simulates a Pre-Order System where customers place next-day delivery orders based on
+available stock.
+# Key Features:
+- Orders must be placed in advance.
+- Stock-driven orders (cannot exceed inventory).
+- Delivery slots: Morning (8-11), Afternoon (12-3), Evening (4-7).
+- Cut-off time: 6:00 PM (after cut-off -> +2 days).
+- Ops managers update stock twice daily (08:00 AM & 06:00 PM).
+- Cancel order restores stock.
+ # Setup & Run Instructions
+1. Clone repo
+2. Run: flutter pub get
+3. Run: flutter run
+4. Seed DB with 5-10 products in SQLite/JSON.
+ # Design Notes
+ #  Assumptions:
+- Local device clock for cut-off.
+- Stock deducted on order, restored on cancel.
+- Ops updates at 8AM & 6PM.
+ # Trade-offs:
+- SQLite/JSON instead of real backend.
+- Bloc used for predictable state management.
+ # Future Improvements:
+- Slot capacity limits.
+- Pagination & caching.
+- Notifications for cut-off reminders.
+- Multi-user roles.
+- Backend API integration.
+ # Example Scenarios
+- Order within stock -> Success
+- Order exceeding stock -> Rejected
+- Order after 6PM -> +2 days
+- Cancel order -> Stock restored
+- Ops updates stock -> Reflected
+ # Time Spent Log
+- Setup & Folder Structure: 1h
+- Models & Services: 2h
+- UI Screens: 2h
+- Business Logic: 3h
+- Testing: 2h
+- Documentation: 1h
+  Total: ~11h
